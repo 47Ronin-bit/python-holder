@@ -1,0 +1,127 @@
+from pathlib import Path
+ 
+GRADES_FILE = Path(__file__).resolve().parent / "grades.csv"
+ 
+TEST_WEIGHT = 0.3
+EXAM_WEIGHT = 0.3
+DISCUSSION_WEIGHT = 0.2
+PROJECT_WEIGHT = 0.2
+ 
+# Column layout of grades.csv:
+# Name, StudentID, 4 tests, 2 exams, 2 discussions, project
+FIRST_TEST_COLUMN = 2
+FIRST_EXAM_COLUMN = 6
+FIRST_DISCUSSION_COLUMN = 8
+PROJECT_COLUMN = 10
+EXPECTED_COLUMNS = 11
+ 
+# Lower bounds for each grade range
+A_CUTOFF = 90
+B_CUTOFF = 80
+C_CUTOFF = 70
+D_CUTOFF = 60
+ 
+ 
+def main():
+    """Read the grades file, compute each student's weighted final
+    grade, and print a summary of how many students fall into each
+    grade range.
+    """
+    try:
+        weight_final_list = read_final_grades()
+    except FileNotFoundError:
+        print(f"Error: could not find the file {GRADES_FILE.name}.")
+        return
+    except ValueError as error:
+        print(f"Error: bad data in {GRADES_FILE.name}: {error}")
+        return
+ 
+    analyze_grade(weight_final_list)
+ 
+ 
+def read_final_grades():
+    """Read GRADES_FILE and return a list of every student's final grade."""
+    weight_final_list = []
+ 
+    with open(GRADES_FILE, "r") as grades_file:
+        next(grades_file, None)    # skip the header row
+ 
+        for line in grades_file:
+            line = line.strip()
+            if line == "":         # ignore blank lines
+                continue
+            row = line.split(",")
+            weight_final_list.append(process_row(row))
+ 
+    return weight_final_list
+ 
+ 
+def process_row(row):
+    """Given one row from the grades file, return that student's
+    weighted final grade (bypass the Name and StudentID columns)."""
+    if len(row) < EXPECTED_COLUMNS:
+        raise ValueError(f"expected {EXPECTED_COLUMNS} columns but "
+                         f"found {len(row)} in row: {row}")
+ 
+    # Slice out each group of scores (the end index is not included)
+    tests = row[FIRST_TEST_COLUMN:FIRST_EXAM_COLUMN]
+    exams = row[FIRST_EXAM_COLUMN:FIRST_DISCUSSION_COLUMN]
+    discussions = row[FIRST_DISCUSSION_COLUMN:PROJECT_COLUMN]
+    project_score = float(row[PROJECT_COLUMN])
+ 
+    test_avg = average_subject(tests)
+    exam_avg = average_subject(exams)
+    discussion_avg = average_subject(discussions)
+ 
+    return weight_final(test_avg, exam_avg, discussion_avg, project_score)
+ 
+ 
+def average_subject(subject_list):
+    """Return the average of the scores in subject_list."""
+    total = 0
+    for score in subject_list:
+        total += float(score)      # scores arrive as text from the file
+    return total / len(subject_list)
+ 
+ 
+def weight_final(test_avg, exam_avg, discussion_avg, project_score):
+    """Return a student's weighted final grade, combining the test,
+    exam, discussion, and project scores using the weight constants
+    declared above."""
+    return (test_avg * TEST_WEIGHT
+            + exam_avg * EXAM_WEIGHT
+            + discussion_avg * DISCUSSION_WEIGHT
+            + project_score * PROJECT_WEIGHT)
+ 
+ 
+def analyze_grade(weight_final_list):
+    """Count and print how many students fall into each grade range:
+    90 or above, 80-89, 70-79, 60-69, and below 60."""
+    count_a = 0
+    count_b = 0
+    count_c = 0
+    count_d = 0
+    count_f = 0
+ 
+    for grade in weight_final_list:
+        if grade >= A_CUTOFF:
+            count_a += 1
+        elif grade >= B_CUTOFF:
+            count_b += 1
+        elif grade >= C_CUTOFF:
+            count_c += 1
+        elif grade >= D_CUTOFF:
+            count_d += 1
+        else:
+            count_f += 1
+ 
+    print(f"Students processed: {len(weight_final_list)}")
+    print(f"90 and above: {count_a}")
+    print(f"80-89:        {count_b}")
+    print(f"70-79:        {count_c}")
+    print(f"60-69:        {count_d}")
+    print(f"Below 60:     {count_f}")
+ 
+ 
+if __name__ == "__main__":
+    main()
